@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Report Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--surface:#111118;--surface2:#1a1a24;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--accent:#4f6ef7;--accent2:#7c8fff;--text:#f0f0f8;--muted:#6b6b80;--success:#34d399}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,110,247,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(79,110,247,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.glow{position:fixed;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(79,110,247,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;top:-200px;right:-200px}
+.wrap{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:0 24px 80px}
+header{padding:48px 0 40px}.logo{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.logo-icon{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.logo-text{font-size:15px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.logo-sub{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+h1{font-size:clamp(32px,5vw,52px);font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-bottom:14px}
+h1 span{color:var(--accent2)}.subtitle{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px;font-weight:400}
+.steps-bar{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 24px;margin:32px 0 24px}
+.step-item{display:flex;align-items:center;gap:10px;flex:1}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted);flex-shrink:0;transition:all .3s}
+.step-item.active .step-num{background:var(--accent);border-color:var(--accent);color:#fff}
+.step-item.done .step-num{background:var(--success);border-color:var(--success);color:#000}
+.step-label{font-size:13px;color:var(--muted);font-weight:500;transition:color .3s}
+.step-item.active .step-label{color:var(--text)}.step-item.done .step-label{color:var(--success)}
+.step-line{height:1px;flex:0 0 20px;background:var(--border);margin:0 4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:14px;transition:border-color .3s}
+.card:hover{border-color:var(--border2)}
+.card-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;font-family:'DM Mono',monospace}
+.upload-zone{border:1.5px dashed var(--border2);border-radius:14px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .25s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(79,110,247,.04)}
+.upload-zone input{display:none}
+.upload-icon{width:52px;height:52px;background:var(--surface2);border:1px solid var(--border2);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:22px;transition:transform .2s}
+.upload-zone:hover .upload-icon{transform:translateY(-3px)}
+.upload-title{font-size:15px;font-weight:600;margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--muted);font-family:'DM Mono',monospace}
+.file-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.file-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.file-item.loading{opacity:.6}
+.file-item-name-row{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.file-item-sep{color:var(--border2);font-size:14px;flex-shrink:0;}
+.file-delete-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 4px;line-height:1;transition:color .15s;flex-shrink:0;border-radius:6px;}
+.file-delete-btn:hover{color:#f87171;background:rgba(248,113,113,0.08);}
+.file-item-top{display:flex;align-items:center;gap:10px}
+.file-item-icon{font-size:14px;flex-shrink:0;color:var(--success)}
+.file-item-name{font-size:13px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'DM Mono',monospace;font-weight:500}
+.file-item-count{font-size:11px;color:var(--success);font-family:'DM Mono',monospace;flex-shrink:0}
+.file-lang-row{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.file-lang-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;flex-shrink:0}
+.lang-mini-btn{background:transparent;border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;transition:all .15s}
+.lang-mini-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.lang-mini-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.file-link-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.file-note-row{margin-top:8px;}
+.file-note-row label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;display:block;margin-bottom:6px;}
+.file-note-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text);font-family:'DM Mono',monospace;outline:none;transition:border-color .2s;resize:none;height:58px;}
+.file-note-input:focus{border-color:var(--accent);}
+.file-note-input::placeholder{color:var(--muted);}
+.file-link-row label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;flex-shrink:0}
+.file-link-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);font-family:'DM Mono',monospace;outline:none;transition:border-color .2s}
+.file-link-input:focus{border-color:var(--accent)}.file-link-input::placeholder{color:var(--muted)}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-family:'DM Mono',monospace}
+.field textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;color:var(--text);font-family:'Syne',sans-serif;outline:none;transition:border-color .2s;resize:none;height:70px}
+.field textarea:focus{border-color:var(--accent)}.field textarea::placeholder{color:var(--muted)}
+.status{display:none;padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;font-family:'DM Mono',monospace}
+.status.ok{display:block;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);color:var(--success)}
+.status.err{display:block;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#f87171}
+.gen-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:12px;padding:16px;font-size:15px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:.02em;transition:all .2s;margin-bottom:16px}
+.gen-btn:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(79,110,247,.3)}
+.file-section{margin-bottom:24px}
+.file-section-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.file-section-name{font-size:14px;font-weight:700;color:var(--text);flex:1}
+.file-section-meta{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+.copy-file-btn{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:5px 12px;font-size:11px;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;transition:all .2s;white-space:nowrap}
+.copy-file-btn:hover{border-color:var(--accent);color:var(--accent2)}.copy-file-btn.ok{border-color:var(--success);color:var(--success)}
+.reports-wrap{display:none}.reports-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.reports-count{font-size:13px;color:var(--muted);font-family:'DM Mono',monospace}
+.copy-all-btn{background:transparent;border:1px solid var(--border2);border-radius:8px;padding:7px 14px;font-size:12px;color:var(--muted);cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;transition:all .2s}
+.copy-all-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.report-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:10px;transition:border-color .2s}
+.report-card:hover{border-color:var(--border2)}
+.report-head{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;transition:background .15s}
+.report-head:hover{background:rgba(255,255,255,.02)}
+.report-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0}
+.report-info{flex:1;min-width:0}.report-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report-meta{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px}
+.result-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(79,110,247,.15);color:var(--accent2);font-family:'DM Mono',monospace;margin-left:6px;vertical-align:middle}
+.report-actions{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.copy-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;font-family:'Syne',sans-serif;cursor:pointer;transition:all .2s;white-space:nowrap}
+.copy-btn:hover{background:var(--accent2)}.copy-btn.ok{background:var(--success);color:#000}
+.toggle-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:10px;transition:all .2s;user-select:none}
+.toggle-btn.open{transform:rotate(180deg)}
+.report-body{display:none;padding:0 20px 20px}.report-body.open{display:block}
+.result-detected{background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--success);font-family:'DM Mono',monospace}
+.edit-hint{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.edit-hint-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.report-text-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13px;line-height:1.85;color:var(--text);white-space:pre-wrap;font-family:'DM Mono',monospace;width:100%;resize:vertical;min-height:280px;outline:none;transition:border-color .2s}
+.report-text-box:focus{border-color:var(--accent)}
+footer{text-align:center;padding:32px 0;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;border-top:1px solid var(--border);margin-top:40px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.card{animation:fadeUp .5s ease both}
+@media(max-width:540px){.steps-bar{flex-wrap:wrap;gap:8px}.step-line{display:none}h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">&#x1F4CA;</div>
+      <div><div class="logo-text">Meta Report</div><div class="logo-sub">by Marketolog.ua</div></div>
+    </div>
+    <h1>Звіти для клієнтів<br><span>за секунди</span></h1>
+    <p class="subtitle">Завантажте CSV файли і отримайте звіти за кілька секунд</p>
+  </header>
+  <div class="steps-bar">
+    <div class="step-item active" id="s1"><div class="step-num">1</div><div class="step-label">Завантажте CSV</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" id="s2"><div class="step-num">2</div><div class="step-label">Налаштуйте</div></div>
+    <div class="step-line"></div>
+    <div class="step-item" id="s3"><div class="step-num">3</div><div class="step-label">Копіюйте звіти</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">01 &mdash; Файли з Meta Ads</div>
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('fi').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+      <input type="file" id="fi" accept=".csv" multiple onchange="handleFiles(this.files)">
+      <div class="upload-icon" id="upload-icon">&#x1F4C2;</div>
+      <div class="upload-title" id="upload-title">Перетягніть CSV або натисніть</div>
+      <div class="upload-sub">Можна завантажити одразу декілька файлів</div>
+    </div>
+    <div class="file-list" id="file-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">02 &mdash; Налаштування</div>
+    <div class="field">
+      <label>Загальна нотатка до всіх звітів (необов’язково)</label>
+      <textarea id="global-note" placeholder="Загальний коментар..." oninput="regenAll()"></textarea>
+    </div>
+  </div>
+  <div id="status" class="status"></div>
+  <button class="gen-btn" onclick="generateAll()">Згенерувати всі звіти &rarr;</button>
+  <div class="reports-wrap" id="reports-wrap">
+    <div class="reports-header">
+      <div class="reports-count" id="reports-count"></div>
+      <button class="copy-all-btn" onclick="copyAll()">Скопіювати всі</button>
+    </div>
+    <div id="reports-list"></div>
+  </div>
+  <footer>Meta Report Generator &middot; Marketolog.ua</footer>
+</div>
+<script>
+
+// Plural helpers
+function plSl(n,f1,f2,f5){var a=Math.abs(Math.floor(n)),m10=a%10,m100=a%100;if(m10===1&&m100!==11)return f1;if(m10>=2&&m10<=4&&!(m100>=12&&m100<=14))return f2;return f5;}
+function plEn(n,s,p){return n===1?s:p;}
+function pl(n,forms,lang){if(!forms||!forms.length)return '';if(lang==='en')return plEn(n,forms[0],forms[1]);return plSl(n,forms[0],forms[1],forms[2]);}
+
+// Translations
+var T={
+  uk:{greeting:'Добрий день!',intro:'Надсилаю звіт по Meta Ads за період',spent:'Було витрачено',received:'Отримано',disclaimer:"У звіт не включено дзвінки, прямі повідомлення та інші способи зв'язку поза рекламним кабінетом Meta.",reach:'Охоплення',impressions:'Покази',clicks_link:'Кліки за посиланням',clicks_all:'Кліки (всі)',activity:'Активність із рекламою',link_label:'Повна статистика доступна в рекламному кабінеті Meta',results_fallback:['результат','результати','результатів'],copy:'Копіювати',copied:'\u2713 Скопійовано'},
+  ru:{greeting:'Добрый день!',intro:'Отправляю отчёт по Meta Ads за период',spent:'Было потрачено',received:'Получено',disclaimer:'В отчёт не включены звонки, прямые сообщения и другие способы связи вне рекламного кабинета Meta.',reach:'Охват',impressions:'Показы',clicks_link:'Клики по ссылке',clicks_all:'Клики (все)',activity:'Активность с рекламой',link_label:'Полная статистика доступна в рекламном кабинете Meta',results_fallback:['результат','результата','результатов'],copy:'Копировать',copied:'\u2713 Скопировано'},
+  en:{greeting:'Good day!',intro:'Sending the Meta Ads report for the period',spent:'Total spent',received:'Results',disclaimer:'Calls, direct messages, and other off-platform contacts are not included in this report.',reach:'Reach',impressions:'Impressions',clicks_link:'Link clicks',clicks_all:'Clicks (all)',activity:'Ad engagement',link_label:'Full stats available in Meta Ads Manager',results_fallback:['result','results','results'],copy:'Copy',copied:'\u2713 Copied'}
+};
+
+// Currency
+var CURR={
+  USD:{s:'$',b:true,sp:false,eu:false},CAD:{s:'CA$',b:true,sp:false,eu:false},
+  AUD:{s:'A$',b:true,sp:false,eu:false},NZD:{s:'NZ$',b:true,sp:false,eu:false},
+  GBP:{s:'\u00a3',b:true,sp:false,eu:false},SGD:{s:'S$',b:true,sp:false,eu:false},
+  EUR:{s:'\u20ac',b:false,sp:true,eu:true},CZK:{s:'K\u010d',b:true,sp:true,eu:true},
+  PLN:{s:'z\u0142',b:false,sp:true,eu:true},UAH:{s:'\u20b4',b:true,sp:false,eu:true},
+  HUF:{s:'Ft',b:false,sp:true,eu:true},SEK:{s:'kr',b:false,sp:true,eu:true},
+  NOK:{s:'kr',b:false,sp:true,eu:true},DKK:{s:'kr',b:false,sp:true,eu:true},
+  CHF:{s:'CHF',b:true,sp:true,eu:true},RUB:{s:'\u20bd',b:false,sp:true,eu:true},
+  TRY:{s:'\u20ba',b:true,sp:false,eu:true},JPY:{s:'\u00a5',b:true,sp:false,eu:false},
+  CNY:{s:'\u00a5',b:true,sp:false,eu:false},INR:{s:'\u20b9',b:true,sp:false,eu:false},
+  ZAR:{s:'R',b:true,sp:false,eu:false},BRL:{s:'R$',b:true,sp:false,eu:false},
+  HKD:{s:'HK$',b:true,sp:false,eu:false},MXN:{s:'MX$',b:true,sp:false,eu:false},
+  ILS:{s:'\u20aa',b:true,sp:false,eu:false},KRW:{s:'\u20a9',b:true,sp:false,eu:false}
+};
+function detectCurrCode(headers){
+  var kw=['amount spent','spend','\u0441\u0443\u043c\u0430 \u0432\u0438\u0442\u0440\u0430\u0442','\u0432\u0438\u0442\u0440\u0430\u0447\u0435\u043d\u043e','\u0441\u0443\u043c\u043c\u0430 \u0440\u0430\u0441\u0445\u043e\u0434\u043e\u0432','\u043f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043e','\u043f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430'];
+  for(var i=0;i<headers.length;i++){
+    var m=headers[i].match(/\(([A-Z]{2,4})\)\s*$/);
+    if(m&&CURR[m[1]]){var hl=headers[i].toLowerCase();if(kw.some(function(k){return hl.includes(k);})||m[1]==='USD'||m[1]==='EUR'||m[1]==='UAH'||m[1]==='CAD'||m[1]==='GBP')return m[1];}
+  }
+  for(var i=0;i<headers.length;i++){var m2=headers[i].match(/\(([A-Z]{2,4})\)\s*$/);if(m2&&CURR[m2[1]])return m2[1];}
+  return 'USD';
+}
+function fmtMoney(val,code){
+  var c=CURR[code]||CURR['USD'],n=Number(val),num;
+  if(c.eu){var p=n.toFixed(2).split('.');num=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,' ')+','+p[1];}
+  else{num=n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  return c.b?c.s+(c.sp?' ':'')+num:num+' '+c.s;
+}
+
+// Result types
+var RT={
+  'leads (form)':{uk:['лід через форму','ліди через форму','лідів через форму'],ru:['лид через форму','лида через форму','лидов через форму'],en:['lead via form','leads via form']},
+  'lead generation':{uk:['лід','ліди','лідів'],ru:['лид','лида','лидов'],en:['lead','leads']},
+  'leads':{uk:['лід','ліди','лідів'],ru:['лид','лида','лидов'],en:['lead','leads']},
+  'on-facebook leads':{uk:['лід (Facebook)','ліди (Facebook)','лідів (Facebook)'],ru:['лид (Facebook)','лида (Facebook)','лидов (Facebook)'],en:['lead (Facebook)','leads (Facebook)']},
+  'instant form leads':{uk:['лід через форму','ліди через форму','лідів через форму'],ru:['лид через форму','лида через форму','лидов через форму'],en:['lead via form','leads via form']},
+  'website leads':{uk:['лід на сайті','ліди на сайті','лідів на сайті'],ru:['лид на сайте','лида на сайте','лидов на сайте'],en:['website lead','website leads']},
+  'messaging conversations started':{uk:['переписку розпочато','переписки розпочато','переписок розпочато'],ru:['переписка начата','переписки начато','переписок начато'],en:['conversation started','conversations started']},
+  'messaging conversation started':{uk:['переписку розпочато','переписки розпочато','переписок розпочато'],ru:['переписка начата','переписки начато','переписок начато'],en:['conversation started','conversations started']},
+  'new messaging connections':{uk:['нова переписка','нові переписки','нових переписок'],ru:['новая переписка','новые переписки','новых переписок'],en:['new conversation','new conversations']},
+  'whatsapp conversations started':{uk:['переписку у WhatsApp','переписки у WhatsApp','переписок у WhatsApp'],ru:['переписка в WhatsApp','переписки в WhatsApp','переписок в WhatsApp'],en:['WhatsApp conversation','WhatsApp conversations']},
+  'instagram direct messages':{uk:['повідомлення в Instagram Direct','повідомлення в Instagram Direct','повідомлень в Instagram Direct'],ru:['сообщение в Instagram Direct','сообщения в Instagram Direct','сообщений в Instagram Direct'],en:['Instagram Direct message','Instagram Direct messages']},
+  'messenger conversations started':{uk:['переписку у Messenger','переписки у Messenger','переписок у Messenger'],ru:['переписка в Messenger','переписки в Messenger','переписок в Messenger'],en:['Messenger conversation','Messenger conversations']},
+  'conversations':{uk:['переписка','переписки','переписок'],ru:['переписка','переписки','переписок'],en:['conversation','conversations']},
+  'link clicks':{uk:['клік на посилання','кліки на посилання','кліків на посилання'],ru:['клик по ссылке','клика по ссылке','кликов по ссылке'],en:['link click','link clicks']},
+  'landing page views':{uk:['перегляд сторінки','перегляди сторінки','переглядів сторінки'],ru:['просмотр страницы','просмотра страницы','просмотров страницы'],en:['landing page view','landing page views']},
+  'outbound clicks':{uk:['перехід на сайт','переходи на сайт','переходів на сайт'],ru:['переход на сайт','перехода на сайт','переходов на сайт'],en:['outbound click','outbound clicks']},
+  'profile visits':{uk:['відвідування профілю','відвідування профілю','відвідувань профілю'],ru:['посещение профиля','посещения профиля','посещений профиля'],en:['profile visit','profile visits']},
+  'instagram profile visits':{uk:['відвідування профілю Instagram','відвідування профілю Instagram','відвідувань профілю Instagram'],ru:['посещение профиля Instagram','посещения профиля Instagram','посещений профиля Instagram'],en:['Instagram profile visit','Instagram profile visits']},
+  'facebook profile visits':{uk:['відвідування профілю Facebook','відвідування профілю Facebook','відвідувань профілю Facebook'],ru:['посещение профиля Facebook','посещения профиля Facebook','посещений профиля Facebook'],en:['Facebook profile visit','Facebook profile visits']},
+  'profile and page visits':{uk:['відвідування профілю','відвідування профілю','відвідувань профілю'],ru:['посещение профиля','посещения профиля','посещений профиля'],en:['profile visit','profile visits']},
+  'page likes':{uk:['підписка на сторінку','підписки на сторінку','підписок на сторінку'],ru:['подписка на страницу','подписки на страницу','подписок на страницу'],en:['page like','page likes']},
+  'page follows':{uk:['підписка','підписки','підписок'],ru:['подписка','подписки','подписок'],en:['follow','follows']},
+  'purchases':{uk:['покупка','покупки','покупок'],ru:['покупка','покупки','покупок'],en:['purchase','purchases']},
+  'website purchases':{uk:['покупка на сайті','покупки на сайті','покупок на сайті'],ru:['покупка на сайте','покупки на сайте','покупок на сайте'],en:['website purchase','website purchases']},
+  'adds to cart':{uk:['додавання в кошик','додавання в кошик','додавань в кошик'],ru:['добавление в корзину','добавления в корзину','добавлений в корзину'],en:['add to cart','adds to cart']},
+  'website adds to cart':{uk:['додавання в кошик','додавання в кошик','додавань в кошик'],ru:['добавление в корзину','добавления в корзину','добавлений в корзину'],en:['add to cart','adds to cart']},
+  'checkouts initiated':{uk:['оформлення розпочато','оформлення розпочато','оформлень розпочато'],ru:['оформление начато','оформления начато','оформлений начато'],en:['checkout initiated','checkouts initiated']},
+  'website checkouts initiated':{uk:['оформлення розпочато','оформлення розпочато','оформлень розпочато'],ru:['оформление начато','оформления начато','оформлений начато'],en:['checkout initiated','checkouts initiated']},
+  'thruplay views':{uk:['перегляд відео (ThruPlay)','перегляди відео (ThruPlay)','переглядів відео (ThruPlay)'],ru:['просмотр видео (ThruPlay)','просмотра видео (ThruPlay)','просмотров видео (ThruPlay)'],en:['ThruPlay view','ThruPlay views']},
+  'video views':{uk:['перегляд відео','перегляди відео','переглядів відео'],ru:['просмотр видео','просмотра видео','просмотров видео'],en:['video view','video views']},
+  '2-second continuous video views':{uk:['перегляд відео (2 сек)','перегляди відео (2 сек)','переглядів відео (2 сек)'],ru:['просмотр видео (2 сек)','просмотра видео (2 сек)','просмотров видео (2 сек)'],en:['video view (2s)','video views (2s)']},
+  'registrations':{uk:['реєстрація','реєстрації','реєстрацій'],ru:['регистрация','регистрации','регистраций'],en:['registration','registrations']},
+  'event responses':{uk:['відгук на подію','відгуки на подію','відгуків на подію'],ru:['ответ на приглашение','ответа на приглашение','ответов на приглашение'],en:['event response','event responses']},
+  'app installs':{uk:['встановлення додатку','встановлення додатку','встановлень додатку'],ru:['установка приложения','установки приложения','установок приложения'],en:['app install','app installs']},
+  'calls':{uk:['дзвінок','дзвінки','дзвінків'],ru:['звонок','звонка','звонков'],en:['call','calls']},
+  'post engagement':{uk:['взаємодія з публікацією','взаємодії з публікацією','взаємодій з публікацією'],ru:['взаимодействие с публикацией','взаимодействия с публикацией','взаимодействий с публикацией'],en:['post engagement','post engagements']},
+  'post engagements':{uk:['взаємодія з публікацією','взаємодії з публікацією','взаємодій з публікацією'],ru:['взаимодействие с публикацией','взаимодействия с публикацией','взаимодействий с публикацией'],en:['post engagement','post engagements']},
+  'page engagement':{uk:['взаємодія зі сторінкою','взаємодії зі сторінкою','взаємодій зі сторінкою'],ru:['взаимодействие со страницей','взаимодействия со страницей','взаимодействий со страницей'],en:['page engagement','page engagements']}
+};
+
+// Activity metrics
+var ACT={
+  'post engagement':{plural:{uk:['взаємодія з публікацією','взаємодії з публікацією','взаємодій з публікацією'],ru:['взаимодействие с публикацией','взаимодействия с публикацией','взаимодействий с публикацией'],en:['post engagement','post engagements']}},
+  'post reactions':{plural:{uk:['реакція','реакції','реакцій'],ru:['реакция','реакции','реакций'],en:['reaction','reactions']}},
+  'post comments':{plural:{uk:['коментар','коментарі','коментарів'],ru:['комментарий','комментария','комментариев'],en:['comment','comments']}},
+  'post shares':{plural:{uk:['поширення','поширення','поширень'],ru:['репост','репоста','репостов'],en:['share','shares']}},
+  'post saves':{plural:{uk:['збереження','збереження','збережень'],ru:['сохранение','сохранения','сохранений'],en:['save','saves']}},
+  'page likes':{plural:{uk:['підписка на сторінку','підписки на сторінку','підписок на сторінку'],ru:['подписка на страницу','подписки на страницу','подписок на страницу'],en:['page like','page likes']}},
+  'page follows':{plural:{uk:['підписка','підписки','підписок'],ru:['подписка','подписки','подписок'],en:['follow','follows']}},
+  'video plays':{plural:{uk:['відтворення відео','відтворення відео','відтворень відео'],ru:['воспроизведение видео','воспроизведения видео','воспроизведений видео'],en:['video play','video plays']}},
+  '3-second video views':{plural:{uk:['перегляд відео (3 сек)','перегляди відео (3 сек)','переглядів відео (3 сек)'],ru:['просмотр видео (3 сек)','просмотра видео (3 сек)','просмотров видео (3 сек)'],en:['video view (3s)','video views (3s)']}},
+  'thruplay views':{plural:{uk:['перегляд (ThruPlay)','перегляди (ThruPlay)','переглядів (ThruPlay)'],ru:['просмотр (ThruPlay)','просмотра (ThruPlay)','просмотров (ThruPlay)'],en:['ThruPlay view','ThruPlay views']}},
+  '2-second continuous video views':{plural:{uk:['перегляд відео (2 сек)','перегляди відео (2 сек)','переглядів відео (2 сек)'],ru:['просмотр видео (2 сек)','просмотра видео (2 сек)','просмотров видео (2 сек)'],en:['video view (2s)','video views (2s)']}},
+  'event responses':{plural:{uk:['відгук на подію','відгуки на подію','відгуків на подію'],ru:['ответ на приглашение','ответа на приглашение','ответов на приглашение'],en:['event response','event responses']}},
+  'unique link clicks':{plural:{uk:['унікальний клік','унікальні кліки','унікальних кліків'],ru:['уникальный клик','уникальных клика','уникальных кликов'],en:['unique link click','unique link clicks']}}
+};
+
+// State
+var allFiles=[], globalReportIdx=0;
+
+// Helpers
+function detectSep(l){if((l.match(/\t/g)||[]).length>1)return '\t';if((l.match(/;/g)||[]).length>1)return ';';return ',';}
+function splitLine(l,sep){
+  var res=[],cur='',inQ=false;
+  for(var i=0;i<l.length;i++){
+    var c=l[i];
+    if((c==='"'||c==='\u201c'||c==='\u201d')&&!inQ){inQ=true;}
+    else if((c==='"'||c==='\u201d')&&inQ){inQ=false;}
+    else if(c===sep&&!inQ){res.push(cur.trim());cur='';}
+    else{cur+=c;}
+  }
+  res.push(cur.trim());
+  return res;
+}
+function toNum(v){var s=(v||'').replace(/[$,\s\u00a0]/g,'');var n=parseFloat(s);return isNaN(n)?null:n;}
+function fmtN(n){return Math.round(n).toLocaleString('uk-UA');}
+function cleanFileName(n){return n.replace(/\.csv$/i,'').replace(/_/g,' ').replace(/-/g,' ').trim();}
+function dateKey(d){var p=d.split('.');return p.length>=3?parseInt(p[2])*10000+parseInt(p[1])*100+parseInt(p[0]):0;}
+function dateShort(d){return d.slice(0,5);}
+function toUA(s){if(!s)return '';var p=s.split(/[-\/]/);return p.length===3&&p[0].length===4?p[2]+'.'+p[1]+'.'+p[0]:s;}
+function getSpent(metrics){
+  var prefixes=['amount spent','spend','\u043f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430','\u0441\u0443\u043c\u0430 \u0432\u0438\u0442\u0440\u0430\u0442','\u0441\u0443\u043c\u043c\u0430 \u0440\u0430\u0441\u0445\u043e\u0434\u043e\u0432'];
+  var keys=Object.keys(metrics);
+  for(var pi=0;pi<prefixes.length;pi++){
+    for(var ki=0;ki<keys.length;ki++){
+      if((keys[ki]===prefixes[pi]||keys[ki].indexOf(prefixes[pi])===0)&&metrics[keys[ki]]!==0)return metrics[keys[ki]];
+    }
+  }
+  return null;
+}
+
+// Result label
+function buildResultLabel(rawType,count,lang){
+  if(!rawType)return fmtN(count)+' '+pl(count,T[lang].results_fallback,lang);
+  var key=rawType.toLowerCase().trim(),entry=RT[key];
+  if(!entry||!entry[lang]){return fmtN(count)+' '+rawType.replace(/[()]/g,'').trim();}
+  return fmtN(count)+' '+pl(count,entry[lang],lang)+' ('+rawType.replace(/[()]/g,'').trim()+')';}
+function buildResultsLine(ac,lang){
+  var types=Object.entries(ac.resultTypes);
+  if(!types.length){return ac.allResults>0?'\u2022 '+fmtN(ac.allResults)+' '+pl(ac.allResults,T[lang].results_fallback,lang):null;}
+  return types.map(function(t){return '\u2022 '+buildResultLabel(t[0],t[1],lang);}).join('\n');
+}
+
+// Normalize RU/UA column/result names to EN keys
+var RTNORM={
+  '\u043d\u0430\u0447\u0430\u0442\u0430 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u0430':'messaging conversations started',
+  '\u043d\u0430\u0447\u0430\u0442\u044b\u0435 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u0438':'messaging conversations started',
+  '\u043f\u043e\u0447\u0430\u0442\u043e \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u0443':'messaging conversations started',
+  '\u043b\u0438\u0434 (\u0444\u043e\u0440\u043c\u0430)':'leads (form)','\u043b\u0438\u0434\u044b \u0444\u043e\u0440\u043c\u0430':'leads (form)',
+  '\u043b\u0438\u0434\u044b (\u0444\u043e\u0440\u043c\u0430)':'leads (form)','\u043b\u0438\u0434 \u0444\u043e\u0440\u043c\u0430':'leads (form)',
+  '\u043b\u0438\u0434\u044b \u0447\u0435\u0440\u0435\u0437 \u0444\u043e\u0440\u043c\u0443':'leads (form)',
+  '\u043b\u0438\u0434\u044b':'leads','\u043b\u0456\u0434 \u0444\u043e\u0440\u043c\u0430':'leads (form)',
+  '\u043b\u0456\u0434\u0438 \u0444\u043e\u0440\u043c\u0430':'leads (form)','\u043b\u0456\u0434\u0438 (\u0444\u043e\u0440\u043c\u0430)':'leads (form)',
+  '\u043b\u0456\u0434\u0438 \u0447\u0435\u0440\u0435\u0437 \u0444\u043e\u0440\u043c\u0443':'leads (form)',
+  '\u043f\u043e\u043a\u0443\u043f\u043a\u0438':'purchases',
+  '\u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0432 \u043a\u043e\u0440\u0437\u0438\u043d\u0443':'adds to cart',
+  '\u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f \u0434\u043e \u043a\u043e\u0448\u0438\u043a\u0430':'adds to cart',
+  '\u043d\u0430\u0447\u0430\u0442\u044b\u0435 \u043e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u0438\u044f \u0437\u0430\u043a\u0430\u0437\u0430':'checkouts initiated',
+  '\u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f':'app installs',
+  '\u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f':'app installs',
+  '\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u0438':'registrations','\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f':'registrations',
+  '\u0440\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u044f':'registrations','\u0440\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u0457':'registrations',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f':'profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f instagram':'instagram profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430 instagram':'instagram profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b facebook':'facebook profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f \u0438 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b':'profile and page visits',
+  '\u0432\u0456\u0434\u0432\u0456\u0434\u0443\u0432\u0430\u043d\u043d\u044f \u043f\u0440\u043e\u0444\u0456\u043b\u044e':'profile visits',
+  '\u0432\u0456\u0434\u0432\u0456\u0434\u0443\u0432\u0430\u043d\u043d\u044f \u043f\u0440\u043e\u0444\u0456\u043b\u044e instagram':'instagram profile visits',
+  '\u0432\u0456\u0434\u0432\u0456\u0434\u0443\u0432\u0430\u043d\u043d\u044f \u043f\u0440\u043e\u0444\u0456\u043b\u044e facebook':'facebook profile visits',
+  '\u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0438 \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0443':'page likes',
+  '\u0432\u0437\u0430\u0438\u043c\u043e\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u0441 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0435\u0439':'post engagement',
+  '\u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f \u0432 whatsapp':'whatsapp conversations started',
+  '\u0437\u0432\u043e\u043d\u043a\u0438':'calls','\u0434\u0437\u0432\u0456\u043d\u043a\u0438':'calls',
+  'phone calls placed':'calls','phone calls':'calls','calls placed':'calls',
+  'взаимодействия с публикацией':'post engagement',
+  'взаимодействия со страницей':'page engagement',
+  'взаємодії з публікацією':'post engagement',
+  'взаємодії зі сторінкою':'page engagement',
+  'post engagements':'post engagement',
+  'page engagements':'page engagement',
+  '\u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u0456 \u0434\u0437\u0432\u0456\u043d\u043a\u0438':'calls','\u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u044b\u0435 \u0437\u0432\u043e\u043d\u043a\u0438':'calls',
+  '\u0432\u0456\u0434\u043f\u043e\u0432\u0456\u0434\u0456 \u043d\u0430 \u0437\u0430\u043f\u0440\u043e\u0448\u0435\u043d\u043d\u044f':'event responses',
+  '\u0432\u0456\u0434\u043f\u043e\u0432\u0456\u0434\u0456 \u043d\u0430 \u043f\u043e\u0434\u0456\u044e':'event responses',
+  '\u043e\u0442\u0432\u0435\u0442\u044b \u043d\u0430 \u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u044f':'event responses',
+  '\u043e\u0442\u0432\u0435\u0442\u044b \u043d\u0430 \u0441\u043e\u0431\u044b\u0442\u0438\u044f':'event responses',
+  '\u043e\u0442\u0432\u0435\u0442\u044b \u043d\u0430 \u043c\u0435\u0440\u043e\u043f\u0440\u0438\u044f\u0442\u0438\u0435':'event responses',
+  '\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u044b \u0432\u0438\u0434\u0435\u043e thruplay':'thruplay views',
+  '\u043f\u0435\u0440\u0435\u0433\u043b\u044f\u0434\u0438 \u0432\u0456\u0434\u0435\u043e thruplay':'thruplay views',
+  '\u043f\u0435\u0440\u0435\u0445\u043e\u0434\u044b \u043f\u043e \u0441\u0441\u044b\u043b\u043a\u0435':'link clicks',
+  '\u043a\u043b\u0456\u043a\u0438 \u0437\u0430 \u043f\u043e\u0441\u0438\u043b\u0430\u043d\u043d\u044f\u043c':'link clicks',
+  '\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u044b \u0446\u0435\u043b\u0435\u0432\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b':'landing page views',
+  '\u043f\u0435\u0440\u0435\u0433\u043b\u044f\u0434\u0438 \u0446\u0456\u043b\u044c\u043e\u0432\u043e\u0457 \u0441\u0442\u043e\u0440\u0456\u043d\u043a\u0438':'landing page views'
+};
+
+// Column name mapping RU/UA -> EN
+var COLMAP={
+  '\u0441\u0443\u043c\u0430 \u0432\u0438\u0442\u0440\u0430\u0442':'amount spent','\u0432\u0438\u0442\u0440\u0430\u0447\u0435\u043d\u043e':'amount spent',
+  '\u0441\u0443\u043c\u043c\u0430 \u0440\u0430\u0441\u0445\u043e\u0434\u043e\u0432':'amount spent','\u043f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043e':'amount spent',
+  '\u043f\u043e\u0442\u0440\u0430\u0447\u0435\u043d\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430':'amount spent',
+  '\u043e\u0445\u043e\u043f\u043b\u0435\u043d\u043d\u044f':'reach','\u043e\u0445\u0432\u0430\u0442':'reach',
+  '\u043f\u043e\u043a\u0430\u0437\u0438':'impressions','\u043f\u043e\u043a\u0430\u0437\u044b':'impressions',
+  '\u043a\u043b\u0456\u043a\u0438 \u0437\u0430 \u043f\u043e\u0441\u0438\u043b\u0430\u043d\u043d\u044f\u043c':'link clicks','\u043a\u043b\u0438\u043a\u0438 \u043f\u043e \u0441\u0441\u044b\u043b\u043a\u0435':'link clicks',
+  '\u043a\u043b\u0456\u043a\u0438 (\u0432\u0441\u0456)':'clicks (all)','\u043a\u043b\u0438\u043a\u0438 (\u0432\u0441\u0435)':'clicks (all)',
+  '\u0432\u0437\u0430\u0454\u043c\u043e\u0434\u0456\u0457 \u0437 \u043f\u0443\u0431\u043b\u0456\u043a\u0430\u0446\u0456\u0454\u044e':'post engagement',
+  '\u0432\u0437\u0430\u0438\u043c\u043e\u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f \u0441 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0435\u0439':'post engagement',
+  '\u0440\u0435\u0430\u043a\u0446\u0456\u0457':'post reactions','\u0440\u0435\u0430\u043a\u0446\u0438\u0438':'post reactions',
+  '\u0440\u0435\u0430\u043a\u0446\u0456\u0457 \u043d\u0430 \u043f\u0443\u0431\u043b\u0456\u043a\u0430\u0446\u0456\u044e':'post reactions',
+  '\u0440\u0435\u0430\u043a\u0446\u0438\u0438 \u043d\u0430 \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u044e':'post reactions',
+  '\u043a\u043e\u043c\u0435\u043d\u0442\u0430\u0440\u0456':'post comments','\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0438':'post comments',
+  '\u043a\u043e\u043c\u0435\u043d\u0442\u0430\u0440\u0456\u0457 \u0434\u043e \u043f\u0443\u0431\u043b\u0456\u043a\u0430\u0446\u0456\u0457':'post comments',
+  '\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0438 \u043a \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438':'post comments',
+  '\u043f\u043e\u0448\u0438\u0440\u0435\u043d\u043d\u044f':'post shares','\u0440\u0435\u043f\u043e\u0441\u0442\u044b':'post shares',
+  '\u0440\u0435\u043f\u043e\u0441\u0442\u0438 \u043f\u0443\u0431\u043b\u0456\u043a\u0430\u0446\u0456\u0457':'post shares',
+  '\u0440\u0435\u043f\u043e\u0441\u0442\u044b \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438':'post shares',
+  '\u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043d\u044f':'post saves','\u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f':'post saves',
+  '\u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043d\u044f \u043f\u0443\u0431\u043b\u0456\u043a\u0430\u0446\u0456\u0457':'post saves',
+  '\u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u044f \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438':'post saves',
+  '\u043b\u0430\u0439\u043a\u0438 \u0441\u0442\u043e\u0440\u0456\u043d\u043a\u0438':'page likes',
+  '\u043f\u0456\u0434\u043f\u0438\u0441\u043a\u0438 \u043d\u0430 \u0441\u0442\u043e\u0440\u0456\u043d\u043a\u0443':'page likes',
+  '\u043f\u0456\u0434\u043f\u0438\u0441\u043a\u0438':'page follows',
+  '\u0432\u0456\u0434\u0442\u0432\u043e\u0440\u0435\u043d\u043d\u044f \u0432\u0456\u0434\u0435\u043e':'video plays',
+  '\u0432\u043e\u0441\u043f\u0440\u043e\u0438\u0437\u0432\u0435\u0434\u0435\u043d\u0438\u044f \u0432\u0438\u0434\u0435\u043e':'video plays',
+  '\u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0438 \u043d\u0430 \u0441\u0430\u0439\u0442':'outbound clicks','\u043f\u0435\u0440\u0435\u0445\u043e\u0434\u044b \u043d\u0430 \u0441\u0430\u0439\u0442':'outbound clicks',
+  '\u0443\u043d\u0456\u043a\u0430\u043b\u044c\u043d\u0456 \u043a\u043b\u0456\u043a\u0438 \u0437\u0430 \u043f\u043e\u0441\u0438\u043b\u0430\u043d\u043d\u044f\u043c':'unique link clicks',
+  '\u0443\u043d\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u0435 \u043a\u043b\u0438\u043a\u0438 \u043f\u043e \u0441\u0441\u044b\u043b\u043a\u0435':'unique link clicks',
+  '\u043b\u0456\u0434\u0438':'leads','\u043b\u0438\u0434\u044b':'leads',
+  '\u043f\u043e\u0447\u0430\u0442\u043a\u0438 \u043b\u0438\u0441\u0442\u0443\u0432\u0430\u043d\u043d\u044f':'messaging conversations started',
+  '\u043d\u0430\u0447\u0430\u0442\u044b\u0435 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u0438':'messaging conversations started',
+  '\u043d\u0430\u0447\u0430\u0442\u0430 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u0430':'messaging conversations started',
+  '\u043f\u043e\u0447\u0430\u0442\u043e \u043b\u0438\u0441\u0442\u0443\u0432\u0430\u043d\u043d\u044f':'messaging conversations started',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f instagram':'instagram profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430 instagram':'instagram profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b facebook':'facebook profile visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f \u0438 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b':'profile and page visits',
+  '\u043f\u043e\u0441\u0435\u0449\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0444\u0438\u043b\u044f':'profile visits',
+  '\u0432\u0456\u0434\u0432\u0456\u0434\u0443\u0432\u0430\u043d\u043d\u044f \u043f\u0440\u043e\u0444\u0456\u043b\u044e instagram':'instagram profile visits',
+  '\u0432\u0456\u0434\u0432\u0456\u0434\u0443\u0432\u0430\u043d\u043d\u044f \u043f\u0440\u043e\u0444\u0456\u043b\u044e facebook':'facebook profile visits',
+  '\u043d\u043e\u0432\u0456 \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u043a\u0438':'new messaging connections',
+  '\u043d\u043e\u0432\u0456 \u043f\u0456\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043d\u044f \u0447\u0435\u0440\u0435\u0437 \u043e\u0431\u043c\u0456\u043d \u043f\u043e\u0432\u0456\u0434\u043e\u043c\u043b\u0435\u043d\u043d\u044f\u043c\u0438':'new messaging connections',
+  '\u0432\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044f \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u0438':'app installs','\u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f':'app installs',
+  '\u043f\u043e\u043a\u0443\u043f\u043a\u0438':'purchases','\u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f \u0434\u043e \u043a\u043e\u0448\u0438\u043a\u0430':'adds to cart',
+  '\u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0432 \u043a\u043e\u0440\u0437\u0438\u043d\u0443':'adds to cart',
+  '\u043f\u0435\u0440\u0435\u0433\u043b\u044f\u0434\u0438 \u0446\u0456\u043b\u044c\u043e\u0432\u043e\u0457 \u0441\u0442\u043e\u0440\u0456\u043d\u043a\u0438':'landing page views',
+  '\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u044b \u0446\u0435\u043b\u0435\u0432\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u044b':'landing page views',
+  '\u0434\u0437\u0432\u0456\u043d\u043a\u0438':'calls','\u0437\u0432\u043e\u043d\u043a\u0438':'calls',
+  '\u0447\u0430\u0441\u0442\u043e\u0442\u0430':'frequency','\u0447\u0430\u0441\u0442\u043e\u0442\u0430 \u043f\u043e\u043a\u0430\u0437\u0456\u0432':'frequency',
+  '\u0446\u0456\u043d\u0430 \u0437\u0430 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442':'cost per result','\u0446\u0435\u043d\u0430 \u0437\u0430 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442':'cost per result',
+  '\u0446\u0456\u043d\u043d\u0456\u0441\u0442\u044c \u043f\u043e\u043a\u0443\u043f\u043a\u0438':'purchase value','\u0446\u0435\u043d\u043d\u043e\u0441\u0442\u044c \u043f\u043e\u043a\u0443\u043f\u043a\u0438':'purchase value',
+  '\u0434\u043e\u0445\u0456\u0434 \u0432\u0456\u0434 \u043f\u043e\u043a\u0443\u043f\u043e\u043a \u043d\u0430 \u0432\u0435\u0431-\u0441\u0430\u0439\u0442\u0456':'purchase value',
+  '\u0434\u043e\u0445\u043e\u0434 \u043e\u0442 \u043f\u043e\u043a\u0443\u043f\u043e\u043a \u043d\u0430 \u0441\u0430\u0439\u0442\u0435':'purchase value'
+};
+
+// RESULT_METRIC_KEYS: metrics that belong in Results block
+var RMK=['messaging conversations started','messaging conversation started','new messaging connections',
+  'whatsapp conversations started','instagram direct messages','conversations',
+  'messenger conversations started','messenger',
+  'instagram profile visits','facebook profile visits','profile and page visits','profile visits',
+  'leads','on-facebook leads','website leads','instant form leads',
+  'adds to cart','website adds to cart','checkouts initiated','website checkouts initiated',
+  'purchases','website purchases','app installs','mobile app installs',
+  'calls','registrations','event responses','landing page views'];
+
+function normalizeMetrics(metrics) {
+  var keys=Object.keys(metrics);
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i];
+    if(COLMAP[k]){var ek=COLMAP[k];metrics[ek]=(metrics[ek]||0)+metrics[k];delete metrics[k];continue;}
+    var cmk=Object.keys(COLMAP);
+    for(var j=0;j<cmk.length;j++){
+      if(k.indexOf(cmk[j])===0&&k!==cmk[j]){
+        var ek2=COLMAP[cmk[j]];metrics[ek2]=(metrics[ek2]||0)+metrics[k];delete metrics[k];break;
+      }
+    }
+  }
+}
+function moveToResults(ac){
+  for(var i=0;i<RMK.length;i++){
+    var rmk=RMK[i];
+    if(ac.metrics[rmk]&&ac.metrics[rmk]>0){
+      if(!ac.resultTypes[rmk]){ac.resultTypes[rmk]=ac.metrics[rmk];ac.allResults+=ac.metrics[rmk];}
+      delete ac.metrics[rmk];
+    }
+  }
+}
+
+function parseCSV(raw){
+  var lines=raw.trim().split('\n').filter(function(l){return l.trim();});
+  if(lines.length<2)return null;
+  var sep=detectSep(lines[0]);
+  var headers=splitLine(lines[0],sep);
+  var currCode=detectCurrCode(headers);
+  var hLow=headers.map(function(h){return h.toLowerCase().trim();});
+  var allRows=lines.slice(1).map(function(l){return splitLine(l,sep);});
+  var skipWords=['total','total reported','\u0437\u0432\u0456\u0442 \u0437\u0430\u0433\u0430\u043b\u043e\u043c','\u0438\u0442\u043e\u0433\u043e','\u0437\u0430\u0433\u0430\u043b\u043e\u043c','\u0432\u0441\u044c\u043e\u0433\u043e','\u0432\u0441\u0435\u0433\u043e'];
+  var rows=allRows.filter(function(r){var f=(r[0]||'').toLowerCase().trim();return f!==''&&skipWords.indexOf(f)===-1;});
+  if(!rows.length)return null;
+
+  // Find column indices
+  var acKeys=['ad account name','account name','\u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0440\u0435\u043a\u043b\u0430\u043c\u043d\u043e\u0433\u043e \u0430\u043a\u043a\u0430\u0443\u043d\u0442\u0430','\u043d\u0430\u0437\u0432\u0430 \u0440\u0435\u043a\u043b\u0430\u043c\u043d\u043e\u0433\u043e \u0430\u043a\u0430\u0443\u043d\u0442\u0443','\u043d\u0430\u0437\u0432\u0430 \u0430\u043a\u0430\u0443\u043d\u0442\u0443','\u0440\u0435\u043a\u043b\u0430\u043c\u043d\u0438\u0439 \u0430\u043a\u0430\u0443\u043d\u0442'];
+  var campKeys=['campaign name','\u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043a\u0430\u043c\u043f\u0430\u043d\u0438\u0438','\u043d\u0430\u0437\u0432\u0430 \u043a\u0430\u043c\u043f\u0430\u043d\u0456\u0457','campaign'];
+  var nameIdx=-1, campIdx=-1;
+  for(var ki=0;ki<acKeys.length;ki++){var ix=hLow.findIndex(function(h){return h.includes(acKeys[ki]);});if(ix!==-1){nameIdx=ix;break;}}
+  for(var ki=0;ki<campKeys.length;ki++){var ix2=hLow.findIndex(function(h){return h.includes(campKeys[ki]);});if(ix2!==-1){campIdx=ix2;break;}}
+  var startIdx=hLow.findIndex(function(h){return['date start','reporting starts','\u0434\u0430\u0442\u0430 \u043f\u043e\u0447\u0430\u0442\u043a\u0443','\u0434\u0430\u0442\u0430 \u043d\u0430\u0447\u0430\u043b\u0430','\u0434\u0430\u0442\u0430 \u043d\u0430\u0447\u0430\u043b\u0430 \u043e\u0442\u0447\u0435\u0442\u043d\u043e\u0441\u0442\u0438','\u0437\u0432\u0456\u0442\u043d\u0438\u0439 \u043f\u043e\u0447\u0430\u0442\u043e\u043a','\u0434\u0430\u0442\u0430 \u043f\u043e\u0447\u0430\u0442\u043a\u0443 \u0437\u0432\u0456\u0442\u043d\u043e\u0441\u0442\u0456'].some(function(k){return h.includes(k);});});
+  var endIdx=hLow.findIndex(function(h){return['date stop','reporting ends','\u0434\u0430\u0442\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043d\u044f','\u0434\u0430\u0442\u0430 \u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f','\u043e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u0435 \u043e\u0442\u0447\u0435\u0442\u043d\u043e\u0441\u0442\u0438','\u0437\u0432\u0456\u0442\u043d\u0438\u0439 \u043a\u0456\u043d\u0435\u0446\u044c','\u0437\u0430\u043a\u0456\u043d\u0447\u0435\u043d\u043d\u044f \u0437\u0432\u0456\u0442\u043d\u043e\u0441\u0442\u0456'].some(function(k){return h.includes(k);});});
+  var resIdx=hLow.findIndex(function(h){return h==='\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442'||h==='results'||h==='\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b'||h==='\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0456';});
+  var resTypeIdx=hLow.findIndex(function(h){return h==='result type'||h==='\u0442\u0438\u043f \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0443'||h==='\u0442\u0438\u043f \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0456\u0432'||h==='\u0442\u0438\u043f \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430'||h==='\u0442\u0438\u043f \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432';});
+
+  function makeAc(name){return {name:name,metrics:{},resultTypes:{},dates:[],allResults:0,primaryResults:0};}
+  function processRow(ac,row){
+    for(var hi=0;hi<headers.length;hi++){
+      var hk=headers[hi].toLowerCase().trim();
+      if(hi===nameIdx||hi===campIdx||hi===startIdx||hi===endIdx||hi===resTypeIdx)continue;
+      var val=toNum(row[hi]);
+      if(val!==null&&val!==0){if(!ac.metrics[hk])ac.metrics[hk]=0;ac.metrics[hk]+=val;}
+    }
+    var rv=resIdx!==-1?toNum(row[resIdx]):null;
+    var rt=resTypeIdx!==-1?(row[resTypeIdx]||'').trim():'';
+    if(rt){rt=rt.toLowerCase().trim();if(RTNORM[rt])rt=RTNORM[rt];}
+    if(rv!==null&&rv>0){ac.allResults+=rv;ac.primaryResults+=rv;if(rt)ac.resultTypes[rt]=(ac.resultTypes[rt]||0)+rv;}
+    if(startIdx!==-1&&row[startIdx])ac.dates.push(toUA(row[startIdx].trim()));
+    if(endIdx!==-1&&row[endIdx])ac.dates.push(toUA(row[endIdx].trim()));
+  }
+  function finishAc(ac){
+    normalizeMetrics(ac.metrics);
+    moveToResults(ac);
+    var uniq=ac.dates.filter(function(d,i,a){return a.indexOf(d)===i;});
+    uniq.sort(function(a,b){return dateKey(a)-dateKey(b);});
+    var f=uniq[0]?dateShort(uniq[0]):'',la=uniq.length?dateShort(uniq[uniq.length-1]):'';
+    ac.period=f&&la?(f===la?f:f+' \u2013 '+la):'';
+    return ac;
+  }
+
+  // Build account map
+  var map={};
+  for(var ri=0;ri<rows.length;ri++){
+    var row=rows[ri];
+    var name=nameIdx!==-1?(row[nameIdx]||'').trim():'\u0410\u043a\u0430\u0443\u043d\u0442';
+    if(!map[name])map[name]=makeAc(name);
+    processRow(map[name],row);
+  }
+  var accounts=Object.values(map).map(finishAc);
+
+  // Build campaign map
+  var campMap={};
+  if(campIdx!==-1){
+    for(var ri=0;ri<rows.length;ri++){
+      var row=rows[ri];
+      var cn=(row[campIdx]||'').trim();
+      if(!cn||cn==='-'||cn==='\u2014')continue;
+      if(!campMap[cn])campMap[cn]=makeAc(cn);
+      processRow(campMap[cn],row);
+    }
+  }
+  var campaigns=Object.values(campMap).map(finishAc);
+
+  return {accounts:accounts,campaigns:campaigns,currCode:currCode};
+}
+
+// Build text
+function buildTextCampaigns(campaigns,fileName,lang,currCode,link,note){
+  var L=T[lang];
+  var allDates=[];
+  campaigns.forEach(function(c){
+    if(c.period){var p=c.period.split(' \u2013 ');allDates.push(p[0],p[p.length-1]);}
+  });
+  allDates=allDates.filter(Boolean);
+  allDates.sort(function(a,b){return dateKey(a)-dateKey(b);});
+  var period=allDates.length?(allDates[0]===allDates[allDates.length-1]?allDates[0]:allDates[0]+' \u2013 '+allDates[allDates.length-1]):'\u2014';
+  var sep='\n\u2014\u2014\u2014\u2014\n\n';
+  var t=fileName+'\n\n'+L.greeting+'\n'+L.intro+' '+period+':\n';
+  // Filter out campaigns with no actual data
+  var activeCampaigns=campaigns.filter(function(c){
+    if(getSpent(c.metrics)!==null&&getSpent(c.metrics)>0)return true;
+    if(c.allResults>0||Object.keys(c.resultTypes).length>0)return true;
+    if(Object.keys(c.metrics).some(function(k){return c.metrics[k]>0;}))return true;
+    return false;
+  });
+  if(!activeCampaigns.length)activeCampaigns=campaigns;
+  var parts=activeCampaigns.map(function(c){return buildText(c,c.name,lang,currCode,link,note,true);});
+  t+=sep+parts.join(sep);
+  return t.trimEnd();
+}
+
+function buildText(ac,fileName,lang,currCode,link,note,isCampaign){
+  var L=T[lang],period=ac.period||'\u2014';
+  var resultsLine=buildResultsLine(ac,lang);
+  var spent=getSpent(ac.metrics);
+  var m=ac.metrics;
+  var reach=m['reach']||null,imp=m['impressions']||null;
+  var clink=m['link clicks']||null,uclink=m['unique link clicks']||null,call=m['clicks (all)']||null;
+  var purval=m['purchase value']||null;
+  var spent_val=getSpent(m)||0;
+  // Recalculate derived/rate metrics from raw totals (never sum rates)
+  var freq=(reach&&reach>0&&imp&&imp>0)?(imp/reach):null;
+  var ctr=(clink&&clink>0&&imp&&imp>0)?((clink/imp)*100):null;
+  var cpm=(imp&&imp>0&&spent_val>0)?((spent_val/imp)*1000):null;
+  var cpc=(clink&&clink>0&&spent_val>0)?(spent_val/clink):null;
+  var primaryResults=ac.primaryResults||0;
+  var cpr=(primaryResults>0&&spent_val>0)?(spent_val/primaryResults):null;
+  var roas=(purval&&purval>0&&spent_val>0)?(purval/spent_val):null;
+  var roas_raw=m['purchase roas (return on ad spend)']||null;
+  if(!roas&&roas_raw)roas=roas_raw;
+  var TM={
+    uk:{freq:'Частота',uclink:'Унікальні кліки',ctr:'CTR',cpm:'CPM',cpc:'CPC',cpr:'Ціна за результат',roas:'ROAS',purval:'Дохід від покупок'},
+    ru:{freq:'Частота',uclink:'Уникальные клики',ctr:'CTR',cpm:'CPM',cpc:'CPC',cpr:'Цена за результат',roas:'ROAS',purval:'Доход от покупок'},
+    en:{freq:'Frequency',uclink:'Unique link clicks',ctr:'CTR',cpm:'CPM',cpc:'CPC',cpr:'Cost per result',roas:'ROAS',purval:'Purchase value'}
+  };
+  var tm=TM[lang]||TM['en'];
+  var skip=['amount spent','spend','reach','impressions','frequency','link clicks','unique link clicks',
+    'clicks (all)','ctr (link click-through rate)','ctr (all)','cpm (cost per 1,000 impressions)',
+    'cpc (cost per link click)','cpc (all)','cpp (cost per 1,000 people reached)','cost per result',
+    'purchase roas (return on ad spend)','purchase value','results','result type',
+    'leads','on-facebook leads','website leads','instant form leads','adds to cart','website adds to cart',
+    'checkouts initiated','website checkouts initiated','messaging conversations started',
+    'messaging conversation started','new messaging connections','whatsapp conversations started',
+    'instagram direct messages','conversations','messenger conversations started','messenger',
+    'instagram profile visits','facebook profile visits','profile and page visits','profile visits',
+    'purchases','website purchases','app installs','mobile app installs','calls','registrations',
+    'event responses','landing page views','outbound clicks'];
+  var t='';
+  if(isCampaign){t+=fileName+'\n\n';}
+  else{t+=fileName+'\n\n'+L.greeting+'\n'+L.intro+' '+period+':\n\n';}
+  if(spent!==null)t+='\uD83D\uDD39 '+L.spent+': '+fmtMoney(spent,currCode)+'\n\n';
+  if(resultsLine)t+='\uD83D\uDD39 '+L.received+':\n'+resultsLine+'\n';
+  t+='\n\u2757\uFE0F'+L.disclaimer+'\n\n';
+  var p5=[];
+  if(reach!==null)p5.push('\uD83D\uDD39 '+L.reach+': '+fmtN(reach));
+  if(imp!==null)p5.push('\uD83D\uDD39 '+L.impressions+': '+fmtN(imp));
+  if(freq!==null)p5.push('\uD83D\uDD39 '+tm.freq+': '+Number(freq).toFixed(2));
+  if(clink!==null)p5.push('\uD83D\uDD39 '+L.clicks_link+': '+fmtN(clink));
+  if(uclink!==null)p5.push('\uD83D\uDD39 '+tm.uclink+': '+fmtN(uclink));
+  if(call!==null)p5.push('\uD83D\uDD39 '+L.clicks_all+': '+fmtN(call));
+  if(ctr!==null)p5.push('\uD83D\uDD39 '+tm.ctr+': '+Number(ctr).toFixed(2)+'%');
+  if(cpm!==null)p5.push('\uD83D\uDD39 '+tm.cpm+': '+fmtMoney(cpm,currCode));
+  if(cpc!==null)p5.push('\uD83D\uDD39 '+tm.cpc+': '+fmtMoney(cpc,currCode));
+  if(cpr!==null)p5.push('\uD83D\uDD39 '+tm.cpr+': '+fmtMoney(cpr,currCode));
+  if(roas!==null)p5.push('\uD83D\uDD39 '+tm.roas+': '+Number(roas).toFixed(2));
+  if(purval!==null)p5.push('\uD83D\uDD39 '+tm.purval+': '+fmtMoney(purval,currCode));
+  if(p5.length)t+=p5.join('\n')+'\n';
+  var actLines=[];
+  Object.keys(m).forEach(function(mk){
+    if(mk.indexOf('amount spent')===0||mk.indexOf('spend')===0)return;
+    if(skip.some(function(s){return mk===s||mk.indexOf(s)===0;}))return;
+    var entry=ACT[mk];if(!entry||!entry.plural)return;
+    var val=m[mk];if(!val||val===0)return;
+    var word=pl(val,entry.plural[lang],lang);
+    word=word.charAt(0).toLowerCase()+word.slice(1);
+    actLines.push('\u2022 '+fmtN(val)+' '+word);
+  });
+  if(actLines.length)t+='\n\uD83D\uDCC8 '+L.activity+':\n'+actLines.join('\n');
+  if(note)t+='\n\n\uD83D\uDCAC '+note;
+  if(link)t+='\n\n\u2B07\uFE0F '+L.link_label+':\n'+link;
+  return t.trimEnd();
+}
+
+// File handling
+function handleDrop(e){e.preventDefault();document.getElementById('drop-zone').classList.remove('drag');handleFiles(e.dataTransfer.files);}
+function handleFiles(files){
+  if(!files||!files.length)return;
+  var arr=Array.from(files),startIdx=allFiles.length;
+  arr.forEach(function(file,i){allFiles.push(null);addPlaceholder(startIdx+i,file.name);});
+  arr.forEach(function(file,i){
+    var fi=startIdx+i,reader=new FileReader();
+    reader.onload=function(e){fillFile(e.target.result,file.name,fi);};
+    reader.readAsText(file,'UTF-8');
+  });
+  document.getElementById('upload-icon').textContent='\uD83D\uDCC1';
+}
+function addPlaceholder(fi,fname){
+  var list=document.getElementById('file-list'),item=document.createElement('div');
+  item.className='file-item loading';item.id='file-item-'+fi;
+  item.innerHTML='<div class="file-item-top"><div class="file-item-icon" style="color:var(--muted)">&#x23F3;</div><div class="file-item-name">'+cleanFileName(fname)+'</div><div class="file-item-count" style="color:var(--muted)">...</div></div>';
+  list.appendChild(item);
+}
+function fillFile(raw,fname,fi){
+  var parsed=parseCSV(raw),cn=cleanFileName(fname),item=document.getElementById('file-item-'+fi);
+  if(!parsed){
+    allFiles[fi]={error:true};
+    if(item){item.classList.remove('loading');item.innerHTML='<div class="file-item-top"><div class="file-item-icon" style="color:#f87171">&#x26A0;</div><div class="file-item-name">'+cn+'</div><div class="file-item-count" style="color:#f87171">\u041f\u043e\u043c\u0438\u043b\u043a\u0430</div></div>';}
+    return;
+  }
+  allFiles[fi]={fileName:cn,lang:'uk',link:'',note:'',currCode:parsed.currCode,accounts:parsed.accounts,campaigns:parsed.campaigns||[],mode:'account'};
+  if(item){
+    item.classList.remove('loading');
+    item.innerHTML='<div class="file-item-top"><div class="file-item-icon">&#x2713;</div><div class="file-item-name-row"><div class="file-item-name">'+cn+'</div></div><div class="file-item-count">'+parsed.accounts.length+' \u0430\u043a\u0430\u0443\u043d\u0442'+(parsed.accounts.length===1?'':'\u0456\u0432')+'</div><span class="file-item-sep">|</span><button class="file-delete-btn" onclick="deleteFile('+fi+')" title="Видалити">&#x2715;</button></div>'+
+      '<div class="file-lang-row"><div class="file-lang-label">\u041c\u043e\u0432\u0430:</div>'+
+      '<button class="lang-mini-btn active" onclick="setFileLang('+fi+',\'uk\',this)">&#x1F1FA;&#x1F1E6; \u0423\u041a\u0420</button>'+
+      '<button class="lang-mini-btn" onclick="setFileLang('+fi+',\'ru\',this)">&#x1F1F7;&#x1F1FA; \u0420\u0423\u0421</button>'+
+      '<button class="lang-mini-btn" onclick="setFileLang('+fi+',\'en\',this)">&#x1F1EC;&#x1F1E7; ENG</button></div>'+
+      '<div class="file-lang-row"><div class="file-lang-label">\u0420\u0435\u0436\u0438\u043c:</div>'+
+      '<button class="lang-mini-btn active" id="mode-acc-'+fi+'" onclick="setFileMode('+fi+',\'account\',this)">&#x1F4CA; \u041f\u043e \u0430\u043a\u0430\u0443\u043d\u0442\u0443</button>'+
+      '<button class="lang-mini-btn" id="mode-camp-'+fi+'" onclick="setFileMode('+fi+',\'campaign\',this)">&#x1F4CB; \u041f\u043e \u043a\u0430\u043c\u043f\u0430\u043d\u0456\u044f\u0445</button></div>'+
+      '<div class="file-link-row"><label>\u041f\u043e\u0441\u0438\u043b\u0430\u043d\u043d\u044f:</label>'+
+      '<input class="file-link-input" type="text" placeholder="https://fb.me/..." oninput="setFileLink('+fi+',this.value)"></div>'+
+      '<div class="file-note-row"><label>Коментар до звіту</label>'+
+      '<textarea class="file-note-input" placeholder="Нотатка до цього звіту..." oninput="setFileNote('+fi+',this.value)"></textarea></div>';
+  }
+  var valid=allFiles.filter(function(f){return f&&!f.error;});
+  document.getElementById('upload-title').textContent='\u0417\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0435\u043d\u043e \u0444\u0430\u0439\u043b\u0456\u0432: '+valid.length;
+  document.getElementById('s1').className='step-item done';
+  document.getElementById('s2').className='step-item active';
+  showStatus('\u0417\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0435\u043d\u043e '+valid.length+' \u0444\u0430\u0439\u043b'+(valid.length===1?'':'\u0456\u0432')+'. \u041e\u0431\u0435\u0440\u0456\u0442\u044c \u043c\u043e\u0432\u0443 \u0456 \u043d\u0430\u0442\u0438\u0441\u043d\u0456\u0442\u044c \u00ab\u0417\u0433\u0435\u043d\u0435\u0440\u0443\u0432\u0430\u0442\u0438\u00bb.','ok');
+}
+function setFileMode(fi,mode,btn){
+  if(!allFiles[fi])return;
+  allFiles[fi].mode=mode;
+  ['acc','camp'].forEach(function(m){var b=document.getElementById('mode-'+m+'-'+fi);if(b)b.classList.remove('active');});
+  btn.classList.add('active');
+  regenFileReports(fi);
+}
+function setFileLang(fi,lang,btn){
+  if(!allFiles[fi])return;
+  allFiles[fi].lang=lang;
+  var item=document.getElementById('file-item-'+fi);
+  if(item)item.querySelectorAll('.lang-mini-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  regenFileReports(fi);
+}
+function setFileLink(fi,val){if(allFiles[fi])allFiles[fi].link=val;regenFileReports(fi);}
+function setFileNote(fi,val){if(allFiles[fi])allFiles[fi].note=val;regenFileReports(fi);}
+
+// Generate
+function getReport(card,note){
+  var f=allFiles[card._fileIdx];if(!f)return '';
+  var globalNote=document.getElementById('global-note')?document.getElementById('global-note').value.trim():'';
+  var fileNote=f.note||'';
+  var combinedNote=[fileNote,globalNote].filter(Boolean).join('\n');
+  if(f.mode==='campaign'&&f.campaigns&&f.campaigns.length>0)
+    return buildTextCampaigns(f.campaigns,f.fileName,f.lang,f.currCode,f.link,combinedNote);
+  return buildText(card._ac,f.fileName,f.lang,f.currCode,f.link,combinedNote,false);
+}
+function generateAll(){
+  var valid=allFiles.filter(function(f){return f&&!f.error;});
+  if(!valid.length){showStatus('\u0421\u043f\u043e\u0447\u0430\u0442\u043a\u0443 \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0442\u0435 CSV \u0444\u0430\u0439\u043b\u0438.','err');return;}
+  var list=document.getElementById('reports-list');list.innerHTML='';
+  var note=document.getElementById('global-note').value.trim();
+  var colors=['#4f6ef7','#34d399','#fbbf24','#f472b6','#60a5fa','#a78bfa','#fb923c','#2dd4bf'];
+  globalReportIdx=0;var total=0;
+  allFiles.forEach(function(fo,fi){
+    if(!fo||fo.error)return;
+    var sec=document.createElement('div');sec.className='file-section';sec.id='section-'+fi;
+    var hdr=document.createElement('div');hdr.className='file-section-header';
+    hdr.innerHTML='<div class="report-avatar" style="background:'+colors[fi%colors.length]+';width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0">'+fo.fileName.slice(0,2).toUpperCase()+'</div>'+
+      '<div class="file-section-name">'+fo.fileName+'</div>'+
+      '<div class="file-section-meta">'+fo.accounts.length+' \u0430\u043a\u0430\u0443\u043d\u0442'+(fo.accounts.length===1?'':'\u0456\u0432')+'</div>'+
+      '<button class="copy-file-btn" id="cfbtn-'+fi+'" onclick="copyFileReports('+fi+')">\u0412\u0441\u0456 \u0443 \u0444\u0430\u0439\u043b\u0456</button>';
+    sec.appendChild(hdr);
+    fo.accounts.forEach(function(ac,i){
+      var idx=globalReportIdx++,initials=ac.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase()||'??';
+      var color=colors[(fi*3+i)%colors.length];
+      var typeKeys=Object.keys(ac.resultTypes);
+      var badge=typeKeys.length?'<span class="result-badge">'+(typeKeys.length===1?typeKeys[0]:typeKeys.length+' \u0446\u0456\u043b\u0456')+'</span>':'';
+      var det=typeKeys.length?'<div class="result-detected">&#x2713; \u0422\u0438\u043f \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0443: '+typeKeys.join(', ')+'</div>':'';
+      var sv=getSpent(ac.metrics)||0;
+      var card=document.createElement('div');card.className='report-card';
+      card.setAttribute('data-file',fi);card.setAttribute('data-idx',idx);card._ac=ac;card._fileIdx=fi;
+      card.innerHTML='<div class="report-head" onclick="toggleReport('+idx+')">'+
+        '<div class="report-avatar" style="background:'+color+'">'+initials+'</div>'+
+        '<div class="report-info"><div class="report-name">'+ac.name+badge+'</div>'+
+        '<div class="report-meta">'+fmtMoney(sv,fo.currCode)+' \u00b7 '+(ac.period||'\u2014')+'</div></div>'+
+        '<div class="report-actions" onclick="event.stopPropagation()">'+
+          '<button class="copy-btn" id="cbtn-'+idx+'" onclick="copyOne('+idx+')">'+T[fo.lang].copy+'</button>'+
+          '<div class="toggle-btn" id="tbtn-'+idx+'" onclick="toggleReport('+idx+')">&#9662;</div>'+
+        '</div></div>'+
+        '<div class="report-body" id="rbody-'+idx+'">'+det+
+          '<div class="edit-hint"><div class="edit-hint-dot"></div>\u0422\u0435\u043a\u0441\u0442 \u043c\u043e\u0436\u043d\u0430 \u0440\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438 \u0432\u0440\u0443\u0447\u043d\u0443</div>'+
+          '<textarea class="report-text-box" id="rtext-'+idx+'"></textarea></div>';
+      sec.appendChild(card);total++;
+    });
+    list.appendChild(sec);
+  });
+  regenAll();
+  document.getElementById('reports-count').textContent=total+' \u0437\u0432\u0456\u0442'+(total===1?'':'\u0456\u0432')+' \u0433\u043e\u0442\u043e\u0432\u043e \u00b7 '+valid.length+' \u0444\u0430\u0439\u043b'+(valid.length===1?'':'\u0456\u0432');
+  var wrap=document.getElementById('reports-wrap');wrap.style.display='block';
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
+  document.getElementById('s2').className='step-item done';
+  document.getElementById('s3').className='step-item active';
+}
+function regenAll(){
+  var note=document.getElementById('global-note').value.trim();
+  document.querySelectorAll('.report-card').forEach(function(card){
+    var idx=card.getAttribute('data-idx');if(idx===null)return;
+    var el=document.getElementById('rtext-'+idx);
+    if(el&&card._ac)el.value=getReport(card,note);
+    var btn=document.getElementById('cbtn-'+idx);
+    var f=allFiles[card._fileIdx];if(btn&&f)btn.textContent=T[f.lang].copy;
+  });
+}
+function regenFileReports(fi){
+  var note=document.getElementById('global-note').value.trim();
+  document.querySelectorAll('.report-card[data-file="'+fi+'"]').forEach(function(card){
+    var idx=card.getAttribute('data-idx');if(idx===null)return;
+    var el=document.getElementById('rtext-'+idx);
+    if(el&&card._ac)el.value=getReport(card,note);
+    var f=allFiles[fi];var btn=document.getElementById('cbtn-'+idx);if(btn&&f)btn.textContent=T[f.lang].copy;
+  });
+}
+function toggleReport(i){
+  var b=document.getElementById('rbody-'+i),t=document.getElementById('tbtn-'+i);
+  if(b){b.classList.toggle('open');t.classList.toggle('open');}
+}
+function copyOne(i){
+  var card=document.querySelector('.report-card[data-idx="'+i+'"]');
+  var lang=card&&allFiles[card._fileIdx]?allFiles[card._fileIdx].lang:'uk';
+  var el=document.getElementById('rtext-'+i);
+  navigator.clipboard.writeText(el?el.value:'').then(function(){
+    var btn=document.getElementById('cbtn-'+i);
+    if(btn){btn.textContent=T[lang].copied;btn.classList.add('ok');setTimeout(function(){btn.textContent=T[lang].copy;btn.classList.remove('ok');},2000);}
+  });
+}
+function copyFileReports(fi){
+  var texts=[];
+  document.querySelectorAll('.report-card[data-file="'+fi+'"]').forEach(function(card){
+    var idx=card.getAttribute('data-idx'),el=document.getElementById('rtext-'+idx);if(el&&el.value)texts.push(el.value);
+  });
+  navigator.clipboard.writeText(texts.join('\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n')).then(function(){
+    var btn=document.getElementById('cfbtn-'+fi);
+    if(btn){btn.textContent='\u2713 \u0421\u043a\u043e\u043f\u0456\u0439\u043e\u0432\u0430\u043d\u043e';btn.classList.add('ok');setTimeout(function(){btn.textContent='\u0412\u0441\u0456 \u0443 \u0444\u0430\u0439\u043b\u0456';btn.classList.remove('ok');},2000);}
+  });
+}
+function copyAll(){
+  var texts=[];
+  document.querySelectorAll('.report-card').forEach(function(card){
+    var idx=card.getAttribute('data-idx'),el=document.getElementById('rtext-'+idx);if(el&&el.value)texts.push(el.value);
+  });
+  navigator.clipboard.writeText(texts.join('\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n')).then(function(){
+    var btn=document.querySelector('.copy-all-btn');
+    if(btn){btn.textContent='\u2713 \u0421\u043a\u043e\u043f\u0456\u0439\u043e\u0432\u0430\u043d\u043e!';setTimeout(function(){btn.textContent='\u0421\u043a\u043e\u043f\u0456\u044e\u0432\u0430\u0442\u0438 \u0432\u0441\u0456';},2500);}
+  });
+}
+function deleteFile(fi){
+  allFiles[fi]=null;
+  var item=document.getElementById('file-item-'+fi);
+  if(item)item.remove();
+  var sec=document.getElementById('section-'+fi);
+  if(sec)sec.remove();
+  var valid=allFiles.filter(function(f){return f&&!f.error;});
+  if(valid.length===0){
+    document.getElementById('upload-icon').textContent='📂';
+    document.getElementById('upload-title').textContent='Перетягніть CSV або натисніть';
+    document.getElementById('s1').className='step-item active';
+  } else {
+    document.getElementById('upload-title').textContent='Завантажено файлів: '+valid.length;
+  }
+  var cards=document.querySelectorAll('.report-card');
+  if(cards.length===0){document.getElementById('reports-wrap').style.display='none';}
+  else{var tc=cards.length;document.getElementById('reports-count').textContent=tc+' звіт'+(tc===1?'':'ів')+' готово';}
+}
+function showStatus(msg,type){var el=document.getElementById('status');el.textContent=msg;el.className='status '+type;}
+
+</script>
+</body>
+</html>
